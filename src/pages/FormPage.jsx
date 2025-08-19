@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { submitToGoogleForm as submitFormData } from '../services/googleFormService.js';
+// import { submitToDatabase as submitFormData } from '../services/databaseService.js';
+// import { submitToLocalStorage as submitFormData } from '../services/localStorageService.js';
+
 const FormPage = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -8,6 +12,7 @@ const FormPage = () => {
     gender: '',
     interests: []
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -27,24 +32,44 @@ const FormPage = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate form
+
+    if (isSubmitting) { return; }
+
     if (!formData.name || !formData.gender || formData.interests.length === 0) {
       alert('Please fill in all fields');
       return;
     }
 
-    // Navigate to result page with data
-    navigate('/result', { state: formData });
+    setIsSubmitting(true);
+
+    try {
+      const result = await submitFormData(formData);
+      
+      if (result.success) {
+        navigate('/result', { 
+          state: { 
+            ...formData, 
+            submitted: true,
+            message: result.message
+          } 
+        });
+      } else {
+        alert(`Submission failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      alert('There was an error submitting the form. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div style={{ maxWidth: '500px', margin: '50px auto', padding: '20px' }}>
       <h2>User Information Form</h2>
       <form onSubmit={handleSubmit}>
-        {/* Name Field */}
         <div style={{ marginBottom: '20px' }}>
           <label htmlFor="name" style={{ display: 'block', marginBottom: '5px' }}>
             Name:
@@ -62,50 +87,30 @@ const FormPage = () => {
               borderRadius: '4px'
             }}
             required
+            disabled={isSubmitting}
           />
         </div>
 
-        {/* Gender Radio Buttons */}
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '10px' }}>Gender:</label>
           <div>
-            <label style={{ marginRight: '20px' }}>
-              <input
-                type="radio"
-                name="gender"
-                value="male"
-                checked={formData.gender === 'male'}
-                onChange={handleInputChange}
-                style={{ marginRight: '5px' }}
-              />
-              Male
-            </label>
-            <label style={{ marginRight: '20px' }}>
-              <input
-                type="radio"
-                name="gender"
-                value="female"
-                checked={formData.gender === 'female'}
-                onChange={handleInputChange}
-                style={{ marginRight: '5px' }}
-              />
-              Female
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="gender"
-                value="other"
-                checked={formData.gender === 'other'}
-                onChange={handleInputChange}
-                style={{ marginRight: '5px' }}
-              />
-              Other
-            </label>
+            {['Male', 'Female', 'Other'].map(gender => (
+              <label key={gender} style={{ marginRight: '20px' }}>
+                <input
+                  type="radio"
+                  name="gender"
+                  value={gender}
+                  checked={formData.gender === gender}
+                  onChange={handleInputChange}
+                  style={{ marginRight: '5px' }}
+                  disabled={isSubmitting}
+                />
+                {gender}
+              </label>
+            ))}
           </div>
         </div>
 
-        {/* Interest Checkboxes */}
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '10px' }}>Interests:</label>
           <div>
@@ -117,6 +122,7 @@ const FormPage = () => {
                   checked={formData.interests.includes(interest)}
                   onChange={handleInterestChange}
                   style={{ marginRight: '8px' }}
+                  disabled={isSubmitting}
                 />
                 {interest}
               </label>
@@ -124,20 +130,20 @@ const FormPage = () => {
           </div>
         </div>
 
-        {/* Submit Button */}
         <button 
           type="submit"
+          disabled={isSubmitting}
           style={{
-            backgroundColor: '#007bff',
+            backgroundColor: isSubmitting ? '#6c757d' : '#007bff',
             color: 'white',
             padding: '10px 20px',
             border: 'none',
             borderRadius: '4px',
-            cursor: 'pointer',
+            cursor: isSubmitting ? 'not-allowed' : 'pointer',
             fontSize: '16px'
           }}
         >
-          Submit
+          {isSubmitting ? 'Submitting...' : 'Submit'}
         </button>
       </form>
     </div>
